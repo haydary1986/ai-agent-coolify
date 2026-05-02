@@ -22,7 +22,10 @@ func InitDatabase() {
 	}
 
 	// Auto-migrate domain models
-	err = DB.AutoMigrate(&domain.SystemSettings{})
+	err = DB.AutoMigrate(
+		&domain.SystemSettings{},
+		&domain.Skill{},
+	)
 	if err != nil {
 		log.Fatalf("Failed to migrate database: %v", err)
 	}

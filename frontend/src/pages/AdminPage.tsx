@@ -8,6 +8,14 @@ interface AdminPageProps {
   setSystemLogo: (logo: string) => void;
 }
 
+interface Skill {
+  ID: number;
+  Source: string;
+  Type: string;
+  Status: string;
+  CreatedAt: string;
+}
+
 export default function AdminPage({ systemName, systemLogo, setSystemName, setSystemLogo }: AdminPageProps) {
   const [nameInput, setNameInput] = useState(systemName);
   const [logoInput, setLogoInput] = useState(systemLogo);
@@ -16,8 +24,23 @@ export default function AdminPage({ systemName, systemLogo, setSystemName, setSy
   const [isPulling, setIsPulling] = useState(false);
   const [isModelLoaded, setIsModelLoaded] = useState(false);
   const [pullProgress, setPullProgress] = useState(0);
+  const [skills, setSkills] = useState<Skill[]>([]);
+
+  const fetchSkills = async () => {
+    try {
+      const res = await fetch('/api/skills');
+      if (res.ok) {
+        const data = await res.json();
+        setSkills(data || []);
+      }
+    } catch (e) {
+      console.error(e);
+    }
+  };
 
   useEffect(() => {
+    fetchSkills();
+
     // Check if model is loaded on mount
     const checkModel = async () => {
       try {
@@ -45,8 +68,11 @@ export default function AdminPage({ systemName, systemLogo, setSystemName, setSy
     };
     checkModel();
     
-    // Poll every 5 seconds
-    const interval = setInterval(checkModel, 5000);
+    // Poll every 5 seconds for status and skills
+    const interval = setInterval(() => {
+      checkModel();
+      fetchSkills();
+    }, 5000);
     return () => clearInterval(interval);
   }, []);
 
@@ -75,8 +101,18 @@ export default function AdminPage({ systemName, systemLogo, setSystemName, setSy
         body: JSON.stringify({ url: skillUrl })
       });
       setSkillUrl('');
-      setStatusMsg('تم إرسال الرابط لمحرك التعلم في الخلفية!');
+      setStatusMsg('تم إضافة الرابط وجاري المعالجة!');
+      fetchSkills();
       setTimeout(() => setStatusMsg(''), 3000);
+    } catch (e) {
+      console.error(e);
+    }
+  };
+
+  const deleteSkill = async (id: number) => {
+    try {
+      await fetch(`/api/skills/${id}`, { method: 'DELETE' });
+      fetchSkills();
     } catch (e) {
       console.error(e);
     }
@@ -190,7 +226,7 @@ export default function AdminPage({ systemName, systemLogo, setSystemName, setSy
           <p style={{color: 'var(--text-secondary)', marginBottom: '1rem', fontSize: '0.9rem'}}>
             أدخل روابط المواقع أو المقالات التي تريد من الوكيل الذكي تعلمها وتحليلها ليجيب بناءً عليها.
           </p>
-          <div className="form-group">
+          <div className="form-group" style={{marginBottom: '2rem'}}>
             <label>رابط صفحة أو مقال (URL)</label>
             <div style={{display: 'flex', gap: '1rem'}}>
               <input 
@@ -205,6 +241,55 @@ export default function AdminPage({ systemName, systemLogo, setSystemName, setSy
                 إضافة للتعلم
               </button>
             </div>
+          </div>
+
+          <h3 style={{fontSize: '1rem', marginBottom: '1rem', color: 'var(--text)'}}>الروابط المضافة مسبقاً</h3>
+          <div style={{overflowX: 'auto'}}>
+            <table style={{width: '100%', borderCollapse: 'collapse', textAlign: 'right', fontSize: '0.9rem'}}>
+              <thead>
+                <tr style={{borderBottom: '1px solid rgba(255,255,255,0.1)', color: 'var(--text-secondary)'}}>
+                  <th style={{padding: '0.75rem'}}>الرابط / المصدر</th>
+                  <th style={{padding: '0.75rem'}}>الحالة</th>
+                  <th style={{padding: '0.75rem'}}>الإجراء</th>
+                </tr>
+              </thead>
+              <tbody>
+                {skills.length === 0 ? (
+                  <tr>
+                    <td colSpan={3} style={{padding: '1rem', textAlign: 'center', color: 'var(--text-secondary)'}}>
+                      لا توجد روابط مضافة حالياً.
+                    </td>
+                  </tr>
+                ) : (
+                  skills.map(skill => (
+                    <tr key={skill.ID} style={{borderBottom: '1px solid rgba(255,255,255,0.05)'}}>
+                      <td style={{padding: '0.75rem', maxWidth: '300px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap'}} dir="ltr">
+                        <a href={skill.Source} target="_blank" rel="noreferrer" style={{color: 'var(--accent)', textDecoration: 'none'}}>{skill.Source}</a>
+                      </td>
+                      <td style={{padding: '0.75rem'}}>
+                        <span style={{
+                          padding: '0.25rem 0.5rem', 
+                          borderRadius: '1rem', 
+                          fontSize: '0.8rem',
+                          backgroundColor: skill.Status === 'completed' ? 'rgba(74, 222, 128, 0.1)' : 'rgba(250, 204, 21, 0.1)',
+                          color: skill.Status === 'completed' ? '#4ade80' : '#facc15'
+                        }}>
+                          {skill.Status === 'completed' ? 'مكتمل ✅' : 'جاري المعالجة ⏳'}
+                        </span>
+                      </td>
+                      <td style={{padding: '0.75rem'}}>
+                        <button 
+                          onClick={() => deleteSkill(skill.ID)}
+                          style={{background: 'transparent', border: 'none', color: '#ef4444', cursor: 'pointer', padding: '0.25rem'}}
+                        >
+                          حذف
+                        </button>
+                      </td>
+                    </tr>
+                  ))
+                )}
+              </tbody>
+            </table>
           </div>
         </div>
 

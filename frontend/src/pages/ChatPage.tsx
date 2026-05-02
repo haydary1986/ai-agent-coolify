@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Send, Paperclip, Bot, User } from 'lucide-react';
+import { Send, Paperclip, Bot, User, Globe } from 'lucide-react';
 
 interface ChatPageProps {
   systemName: string;
@@ -12,6 +12,7 @@ export default function ChatPage({ systemName, systemLogo }: ChatPageProps) {
   ]);
   const [input, setInput] = useState('');
   const [isLoading, setIsLoading] = useState(false);
+  const [useInternet, setUseInternet] = useState(false);
 
   const handleSend = async () => {
     if (!input.trim()) return;
@@ -25,7 +26,7 @@ export default function ChatPage({ systemName, systemLogo }: ChatPageProps) {
       const res = await fetch('/api/chat', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ message: userMsg })
+        body: JSON.stringify({ message: userMsg, use_internet: useInternet })
       });
       const data = await res.json();
       setMessages(prev => [...prev, { role: 'ai', content: data.response || data.error }]);
@@ -75,7 +76,15 @@ export default function ChatPage({ systemName, systemLogo }: ChatPageProps) {
 
         <div className="chat-input-container">
           <div className="input-box glass-panel">
-            <button className="icon-btn"><Paperclip size={20} /></button>
+            <button className="icon-btn" title="إرفاق ملف"><Paperclip size={20} /></button>
+            <button 
+              className={`icon-btn ${useInternet ? 'active-globe' : ''}`} 
+              onClick={() => setUseInternet(!useInternet)}
+              title="البحث في الإنترنت"
+              style={{ color: useInternet ? '#60a5fa' : 'var(--text-secondary)' }}
+            >
+              <Globe size={20} />
+            </button>
             <input 
               className="chat-input" 
               placeholder="اكتب رسالتك لـ Gemma..." 
