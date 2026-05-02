@@ -12,12 +12,8 @@ import (
 
 // GetOllamaURL returns the Ollama host URL from environment or default
 func GetOllamaURL() string {
-	url := os.Getenv("OLLAMA_URL")
-	if url == "" {
-		// Default to localhost because Ollama now runs in the same container
-		url = "http://127.0.0.1:11434" 
-	}
-	return url
+	// Force localhost since Ollama is running in the same container now
+	return "http://127.0.0.1:11434"
 }
 
 // PullModel sends a request to Ollama to download the model
