@@ -1,5 +1,5 @@
-import { useState } from 'react';
-import { Settings, BookOpen, Save, Link, DownloadCloud } from 'lucide-react';
+import { useState, useEffect } from 'react';
+import { Settings, BookOpen, Save, Link, DownloadCloud, CheckCircle2 } from 'lucide-react';
 
 interface AdminPageProps {
   systemName: string;
@@ -14,6 +14,28 @@ export default function AdminPage({ systemName, systemLogo, setSystemName, setSy
   const [skillUrl, setSkillUrl] = useState('');
   const [statusMsg, setStatusMsg] = useState('');
   const [isPulling, setIsPulling] = useState(false);
+  const [isModelLoaded, setIsModelLoaded] = useState(false);
+
+  useEffect(() => {
+    // Check if model is loaded on mount
+    const checkModel = async () => {
+      try {
+        const res = await fetch('/api/model-status?model_name=gemma2:9b');
+        const data = await res.json();
+        setIsModelLoaded(data.loaded);
+      } catch (e) {
+        console.error(e);
+      }
+    };
+    checkModel();
+    
+    // Poll every 10 seconds if pulling
+    let interval: any;
+    if (isPulling) {
+      interval = setInterval(checkModel, 10000);
+    }
+    return () => clearInterval(interval);
+  }, [isPulling]);
 
   const saveSettings = async () => {
     try {
@@ -55,12 +77,11 @@ export default function AdminPage({ systemName, systemLogo, setSystemName, setSy
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ model_name: 'gemma2:9b' })
       });
-      setStatusMsg('بدأ تحميل نموذج gemma2:9b في الخلفية! (قد يستغرق دقائق حسب سرعة الإنترنت)');
+      setStatusMsg('بدأ تحميل نموذج gemma2:9b في الخلفية! (هذه العملية تستغرق 5-10 دقائق، يمكنك التحقق لاحقاً)');
       setTimeout(() => setStatusMsg(''), 5000);
     } catch (e) {
       console.error(e);
       setStatusMsg('حدث خطأ أثناء محاولة التحميل');
-    } finally {
       setIsPulling(false);
     }
   };
@@ -90,13 +111,22 @@ export default function AdminPage({ systemName, systemLogo, setSystemName, setSy
           <h2 style={{display: 'flex', alignItems: 'center', gap: '0.5rem'}}>
             <DownloadCloud size={20} color="var(--accent)" /> إدارة النماذج الذكية
           </h2>
-          <p style={{color: 'var(--text-secondary)', marginBottom: '1rem', fontSize: '0.9rem'}}>
-            الذكاء الحالي غير محمل. يرجى الضغط على الزر أدناه لبدء تحميل العقل الأساسي (gemma2:9b) ليعمل محلياً بالكامل.
-          </p>
-          <button className="primary-btn" onClick={pullModel} disabled={isPulling} style={{backgroundColor: isPulling ? 'gray' : 'var(--accent)'}}>
-            <DownloadCloud size={16} style={{display: 'inline', verticalAlign: 'middle', marginRight: '0.5rem'}}/>
-            {isPulling ? 'جاري إرسال الطلب...' : 'تحميل نموذج Gemma 2 (9B)'}
-          </button>
+          {isModelLoaded ? (
+             <div style={{color: '#4ade80', marginBottom: '1rem', display: 'flex', alignItems: 'center', gap: '0.5rem', fontSize: '0.95rem', background: 'rgba(74, 222, 128, 0.1)', padding: '0.75rem', borderRadius: '0.5rem'}}>
+                <CheckCircle2 size={18} />
+                الذكاء (gemma2:9b) محمل ويعمل بنجاح! يمكنك التحدث معه الآن في واجهة المحادثة.
+             </div>
+          ) : (
+            <>
+              <p style={{color: 'var(--text-secondary)', marginBottom: '1rem', fontSize: '0.9rem'}}>
+                الذكاء الحالي غير محمل. يرجى الضغط على الزر أدناه لبدء تحميل العقل الأساسي (gemma2:9b) ليعمل محلياً بالكامل.
+              </p>
+              <button className="primary-btn" onClick={pullModel} disabled={isPulling} style={{backgroundColor: isPulling ? 'gray' : 'var(--accent)'}}>
+                <DownloadCloud size={16} style={{display: 'inline', verticalAlign: 'middle', marginRight: '0.5rem'}}/>
+                {isPulling ? 'جاري التحميل والتثبيت (يرجى الانتظار)...' : 'تحميل نموذج Gemma 2 (9B)'}
+              </button>
+            </>
+          )}
         </div>
 
         <div className="admin-card glass-panel">

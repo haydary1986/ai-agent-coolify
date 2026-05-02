@@ -63,6 +63,35 @@ type ChatResponse struct {
 	Error   string      `json:"error,omitempty"`
 }
 
+type TagsResponse struct {
+	Models []struct {
+		Name string `json:"name"`
+	} `json:"models"`
+}
+
+// CheckModelExists queries Ollama to see if a specific model is already downloaded
+func CheckModelExists(modelName string) bool {
+	ollamaURL := GetOllamaURL() + "/api/tags"
+	
+	resp, err := http.Get(ollamaURL)
+	if err != nil {
+		return false
+	}
+	defer resp.Body.Close()
+
+	var tagsResp TagsResponse
+	if err := json.NewDecoder(resp.Body).Decode(&tagsResp); err != nil {
+		return false
+	}
+
+	for _, m := range tagsResp.Models {
+		if m.Name == modelName || m.Name == modelName+":latest" {
+			return true
+		}
+	}
+	return false
+}
+
 // GenerateResponse sends a chat prompt to Ollama and returns the response
 func GenerateResponse(modelName, prompt string) (string, error) {
 	ollamaURL := GetOllamaURL() + "/api/chat"

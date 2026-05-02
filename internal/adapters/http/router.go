@@ -86,6 +86,15 @@ func SetupRoutes(app *fiber.App, learningPool *workers.LearningPool) {
 	})
 
 	// --- LLM Model Management ---
+	api.Get("/model-status", func(c *fiber.Ctx) error {
+		modelName := c.Query("model_name", "gemma2:9b")
+		exists := llm.CheckModelExists(modelName)
+		return c.JSON(fiber.Map{
+			"model":  modelName,
+			"loaded": exists,
+		})
+	})
+
 	api.Post("/pull-model", func(c *fiber.Ctx) error {
 		var req ModelRequest
 		if err := c.BodyParser(&req); err != nil || req.ModelName == "" {
