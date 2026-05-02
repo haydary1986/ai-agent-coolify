@@ -7,7 +7,6 @@ import (
 	"fmt"
 	"log"
 	"net/http"
-	"os"
 )
 
 // GetOllamaURL returns the Ollama host URL from environment or default
