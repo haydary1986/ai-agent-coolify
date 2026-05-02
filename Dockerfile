@@ -18,8 +18,8 @@ RUN CGO_ENABLED=1 GOOS=linux go build -o /app/api_server ./cmd/api
 # Final Run Stage
 FROM debian:bookworm-slim
 
-# Install SQLite, curl, and Ollama dependencies
-RUN apt-get update && apt-get install -y curl sqlite3 ca-certificates \
+# Install SQLite, curl, zstd, and Ollama dependencies
+RUN apt-get update && apt-get install -y curl sqlite3 ca-certificates zstd \
     && curl -fsSL https://ollama.com/install.sh | sh \
     && apt-get clean \
     && rm -rf /var/lib/apt/lists/*
