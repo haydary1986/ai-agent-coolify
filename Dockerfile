@@ -1,24 +1,30 @@
-# Use an official Python runtime as a parent image
-FROM python:3.11-slim
+# Build stage
+FROM golang:1.24-alpine AS builder
 
-# Set environment variables to prevent Python from writing .pyc files
-ENV PYTHONDONTWRITEBYTECODE 1
-ENV PYTHONUNBUFFERED 1
-
-# Set the working directory in the container
 WORKDIR /app
 
-# Copy the requirements file into the container
-COPY requirements.txt .
+# Copy go mod and sum files
+COPY go.mod go.sum ./
 
-# Install dependencies
-RUN pip install --no-cache-dir -r requirements.txt
+# Download all dependencies. Dependencies will be cached if the go.mod and go.sum files are not changed
+RUN go mod download
 
-# Copy the current directory contents into the container at /app
+# Copy the source code
 COPY . .
 
-# Expose port 8000 for FastAPI
+# Build the Go app
+RUN CGO_ENABLED=0 GOOS=linux go build -o /app/api_server ./cmd/api
+
+# Run stage
+FROM alpine:latest
+
+WORKDIR /app
+
+# Copy the pre-built binary file from the previous stage
+COPY --from=builder /app/api_server .
+
+# Expose port 8000
 EXPOSE 8000
 
-# Command to run the application using uvicorn
-CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8000"]
+# Command to run the executable
+CMD ["./api_server"]
