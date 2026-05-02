@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Settings, BookOpen, Save, Link } from 'lucide-react';
+import { Settings, BookOpen, Save, Link, DownloadCloud } from 'lucide-react';
 
 interface AdminPageProps {
   systemName: string;
@@ -13,6 +13,7 @@ export default function AdminPage({ systemName, systemLogo, setSystemName, setSy
   const [logoInput, setLogoInput] = useState(systemLogo);
   const [skillUrl, setSkillUrl] = useState('');
   const [statusMsg, setStatusMsg] = useState('');
+  const [isPulling, setIsPulling] = useState(false);
 
   const saveSettings = async () => {
     try {
@@ -46,6 +47,24 @@ export default function AdminPage({ systemName, systemLogo, setSystemName, setSy
     }
   };
 
+  const pullModel = async () => {
+    setIsPulling(true);
+    try {
+      await fetch('/api/pull-model', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ model_name: 'gemma2:9b' })
+      });
+      setStatusMsg('بدأ تحميل نموذج gemma2:9b في الخلفية! (قد يستغرق دقائق حسب سرعة الإنترنت)');
+      setTimeout(() => setStatusMsg(''), 5000);
+    } catch (e) {
+      console.error(e);
+      setStatusMsg('حدث خطأ أثناء محاولة التحميل');
+    } finally {
+      setIsPulling(false);
+    }
+  };
+
   return (
     <div style={{display: 'flex', width: '100%', height: '100%'}}>
       <div className="sidebar glass-panel">
@@ -66,6 +85,19 @@ export default function AdminPage({ systemName, systemLogo, setSystemName, setSy
             {statusMsg}
           </div>
         )}
+
+        <div className="admin-card glass-panel">
+          <h2 style={{display: 'flex', alignItems: 'center', gap: '0.5rem'}}>
+            <DownloadCloud size={20} color="var(--accent)" /> إدارة النماذج الذكية
+          </h2>
+          <p style={{color: 'var(--text-secondary)', marginBottom: '1rem', fontSize: '0.9rem'}}>
+            الذكاء الحالي غير محمل. يرجى الضغط على الزر أدناه لبدء تحميل العقل الأساسي (gemma2:9b) ليعمل محلياً بالكامل.
+          </p>
+          <button className="primary-btn" onClick={pullModel} disabled={isPulling} style={{backgroundColor: isPulling ? 'gray' : 'var(--accent)'}}>
+            <DownloadCloud size={16} style={{display: 'inline', verticalAlign: 'middle', marginRight: '0.5rem'}}/>
+            {isPulling ? 'جاري إرسال الطلب...' : 'تحميل نموذج Gemma 2 (9B)'}
+          </button>
+        </div>
 
         <div className="admin-card glass-panel">
           <h2 style={{display: 'flex', alignItems: 'center', gap: '0.5rem'}}>

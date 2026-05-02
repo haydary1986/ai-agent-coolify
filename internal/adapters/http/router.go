@@ -6,6 +6,7 @@ import (
 	"github.com/gofiber/fiber/v2"
 	"github.com/haydary1986/ai-agent-coolify/internal/adapters/db"
 	"github.com/haydary1986/ai-agent-coolify/internal/core/domain"
+	"github.com/haydary1986/ai-agent-coolify/internal/adapters/llm"
 	"github.com/haydary1986/ai-agent-coolify/internal/workers"
 )
 
@@ -17,6 +18,11 @@ type SkillRequest struct {
 // ChatRequest represents the payload for the /chat endpoint.
 type ChatRequest struct {
 	Message string `json:"message"`
+}
+
+// ModelRequest represents the payload for pulling models
+type ModelRequest struct {
+	ModelName string `json:"model_name"`
 }
 
 // SettingsRequest represents the payload for updating settings
@@ -79,6 +85,20 @@ func SetupRoutes(app *fiber.App, learningPool *workers.LearningPool) {
 		})
 	})
 
+	// --- LLM Model Management ---
+	api.Post("/pull-model", func(c *fiber.Ctx) error {
+		var req ModelRequest
+		if err := c.BodyParser(&req); err != nil || req.ModelName == "" {
+			req.ModelName = "gemma2:9b" // Default model
+		}
+		
+		err := llm.PullModel(req.ModelName)
+		if err != nil {
+			return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": err.Error()})
+		}
+		return c.JSON(fiber.Map{"message": "Model pull started in the background", "model": req.ModelName})
+	})
+
 	// --- Chat Interface ---
 	api.Post("/chat", func(c *fiber.Ctx) error {
 		var req ChatRequest
@@ -87,9 +107,12 @@ func SetupRoutes(app *fiber.App, learningPool *workers.LearningPool) {
 				"error": "Invalid request, 'message' is required",
 			})
 		}
-		// TODO: Call local Gemma via Ollama API
-		mockResponse := "Gemma-4 (Local) received: " + req.Message
-		return c.JSON(fiber.Map{"response": mockResponse})
+		
+		response, err := llm.GenerateResponse("gemma2:9b", req.Message)
+		if err != nil {
+			return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": err.Error()})
+		}
+		return c.JSON(fiber.Map{"response": response})
 	})
 
 	// --- Serve Frontend Static Files ---
