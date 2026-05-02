@@ -14,9 +14,8 @@ import (
 func GetOllamaURL() string {
 	url := os.Getenv("OLLAMA_URL")
 	if url == "" {
-		// Default to host.docker.internal for local development or Coolify standalone
-		// or "http://ollama:11434" if they use the Coolify service named 'ollama'
-		url = "http://host.docker.internal:11434" 
+		// Default to localhost because Ollama now runs in the same container
+		url = "http://127.0.0.1:11434" 
 	}
 	return url
 }
