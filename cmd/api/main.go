@@ -10,11 +10,15 @@ import (
 	"github.com/gofiber/fiber/v2/middleware/logger"
 	"github.com/gofiber/fiber/v2/middleware/recover"
 
+	"github.com/haydary1986/ai-agent-coolify/internal/adapters/db"
 	"github.com/haydary1986/ai-agent-coolify/internal/adapters/http"
 	"github.com/haydary1986/ai-agent-coolify/internal/workers"
 )
 
 func main() {
+	// Initialize Database
+	db.InitDatabase()
+
 	// Initialize Fiber app
 	app := fiber.New(fiber.Config{
 		AppName:           "Gemma Autonomous Agent",
