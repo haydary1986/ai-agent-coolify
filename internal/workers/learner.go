@@ -5,10 +5,14 @@ import (
 	"log"
 	"sync"
 	"time"
+
+	"github.com/haydary1986/ai-agent-coolify/internal/adapters/db"
+	"github.com/haydary1986/ai-agent-coolify/internal/core/domain"
 )
 
 // LearningTask represents a URL or repository to be processed.
 type LearningTask struct {
+	ID  uint
 	URL string
 }
 
@@ -57,17 +61,25 @@ func (p *LearningPool) processTask(workerID int, task LearningTask) {
 	log.Printf("[Worker %d] Started learning from: %s", workerID, task.URL)
 	
 	// Simulate scraping and Gemini supervision processing
-	time.Sleep(2 * time.Second)
+	time.Sleep(3 * time.Second)
 	
-	// TODO: Add logic to scrape data, send raw data to Gemini API for structuring,
-	// and save to ChromaDB for Gemma-4 to use.
+	// TODO: Add actual HTML scraping logic and Gemini vector generation here later
+	
+	// Mark as completed in DB
+	if task.ID > 0 {
+		var skill domain.Skill
+		if err := db.DB.First(&skill, task.ID).Error; err == nil {
+			skill.Status = "completed"
+			db.DB.Save(&skill)
+		}
+	}
 	
 	log.Printf("[Worker %d] Finished learning and indexing: %s", workerID, task.URL)
 }
 
 // SubmitTask adds a new task to the queue.
-func (p *LearningPool) SubmitTask(url string) {
-	p.Tasks <- LearningTask{URL: url}
+func (p *LearningPool) SubmitTask(id uint, url string) {
+	p.Tasks <- LearningTask{ID: id, URL: url}
 }
 
 // Stop gracefully shuts down the worker pool.

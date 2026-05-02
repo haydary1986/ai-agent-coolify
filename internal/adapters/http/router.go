@@ -98,7 +98,7 @@ func SetupRoutes(app *fiber.App, learningPool *workers.LearningPool) {
 			return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "Failed to save skill"})
 		}
 
-		learningPool.SubmitTask(req.URL)
+		learningPool.SubmitTask(skill.ID, req.URL)
 		return c.Status(fiber.StatusAccepted).JSON(fiber.Map{
 			"message": "URL added to learning queue",
 			"url":     req.URL,
