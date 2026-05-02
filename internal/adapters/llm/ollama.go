@@ -17,31 +17,36 @@ func GetOllamaURL() string {
 
 // PullModel sends a request to Ollama to download the model
 func PullModel(modelName string) error {
-	ollamaURL := GetOllamaURL() + "/api/pull"
-	
-	payload := map[string]string{"name": modelName}
-	jsonPayload, _ := json.Marshal(payload)
+	go func() {
+		ollamaURL := GetOllamaURL() + "/api/pull"
+		
+		payload := map[string]string{"name": modelName}
+		jsonPayload, _ := json.Marshal(payload)
 
-	log.Printf("Starting pull for model: %s from %s", modelName, ollamaURL)
-	
-	resp, err := http.Post(ollamaURL, "application/json", bytes.NewBuffer(jsonPayload))
-	if err != nil {
-		return fmt.Errorf("failed to connect to Ollama: %v", err)
-	}
-	defer resp.Body.Close()
+		log.Printf("Starting background pull for model: %s from %s", modelName, ollamaURL)
+		
+		resp, err := http.Post(ollamaURL, "application/json", bytes.NewBuffer(jsonPayload))
+		if err != nil {
+			log.Printf("failed to connect to Ollama: %v", err)
+			return
+		}
+		defer resp.Body.Close()
 
-	if resp.StatusCode != http.StatusOK {
-		return fmt.Errorf("ollama API returned status: %d", resp.StatusCode)
-	}
+		if resp.StatusCode != http.StatusOK {
+			log.Printf("ollama API returned status: %d", resp.StatusCode)
+			return
+		}
 
-	// We only read a bit of the stream to confirm it started successfully
-	// Fully downloading could take 5-10 minutes and we shouldn't block indefinitely 
-	// without sending feedback, but for simplicity we will just return success 
-	// that the job started. Ollama continues downloading in the background.
-	scanner := bufio.NewScanner(resp.Body)
-	if scanner.Scan() {
-		log.Println("Ollama pull response:", scanner.Text())
-	}
+		// Keep the stream open and consume it until Ollama finishes downloading
+		scanner := bufio.NewScanner(resp.Body)
+		for scanner.Scan() {
+			// We can parse progress here if needed, but for now we just consume the stream
+			// to ensure the connection stays alive until Ollama says it's done.
+			_ = scanner.Text()
+		}
+		
+		log.Printf("Model pull completed for %s!", modelName)
+	}()
 	
 	return nil
 }
