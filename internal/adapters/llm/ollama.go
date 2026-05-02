@@ -7,7 +7,25 @@ import (
 	"fmt"
 	"log"
 	"net/http"
+	"sync"
 )
+
+var (
+	modelProgressMap = make(map[string]float64)
+	progressMutex    sync.RWMutex
+)
+
+func GetModelProgress(modelName string) float64 {
+	progressMutex.RLock()
+	defer progressMutex.RUnlock()
+	return modelProgressMap[modelName]
+}
+
+func setModelProgress(modelName string, progress float64) {
+	progressMutex.Lock()
+	defer progressMutex.Unlock()
+	modelProgressMap[modelName] = progress
+}
 
 // GetOllamaURL returns the Ollama host URL from environment or default
 func GetOllamaURL() string {
@@ -15,9 +33,19 @@ func GetOllamaURL() string {
 	return "http://127.0.0.1:11434"
 }
 
+type PullProgressResponse struct {
+	Status    string `json:"status"`
+	Digest    string `json:"digest,omitempty"`
+	Total     int64  `json:"total,omitempty"`
+	Completed int64  `json:"completed,omitempty"`
+}
+
 // PullModel sends a request to Ollama to download the model
 func PullModel(modelName string) error {
 	go func() {
+		// Initialize progress
+		setModelProgress(modelName, 0.1)
+
 		ollamaURL := GetOllamaURL() + "/api/pull"
 		
 		payload := map[string]string{"name": modelName}
@@ -28,24 +56,34 @@ func PullModel(modelName string) error {
 		resp, err := http.Post(ollamaURL, "application/json", bytes.NewBuffer(jsonPayload))
 		if err != nil {
 			log.Printf("failed to connect to Ollama: %v", err)
+			setModelProgress(modelName, -1) // -1 indicates error
 			return
 		}
 		defer resp.Body.Close()
 
 		if resp.StatusCode != http.StatusOK {
 			log.Printf("ollama API returned status: %d", resp.StatusCode)
+			setModelProgress(modelName, -1)
 			return
 		}
 
 		// Keep the stream open and consume it until Ollama finishes downloading
 		scanner := bufio.NewScanner(resp.Body)
 		for scanner.Scan() {
-			// We can parse progress here if needed, but for now we just consume the stream
-			// to ensure the connection stays alive until Ollama says it's done.
-			_ = scanner.Text()
+			var p PullProgressResponse
+			if err := json.Unmarshal(scanner.Bytes(), &p); err == nil {
+				// Only track progress for large blobs (e.g. > 10MB) to avoid 0-100% jumping on metadata files
+				if p.Total > 10000000 {
+					percent := (float64(p.Completed) / float64(p.Total)) * 100
+					setModelProgress(modelName, percent)
+				} else if p.Status == "success" {
+					setModelProgress(modelName, 100.0)
+				}
+			}
 		}
 		
 		log.Printf("Model pull completed for %s!", modelName)
+		setModelProgress(modelName, 100.0)
 	}()
 	
 	return nil

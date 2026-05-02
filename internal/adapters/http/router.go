@@ -95,6 +95,15 @@ func SetupRoutes(app *fiber.App, learningPool *workers.LearningPool) {
 		})
 	})
 
+	api.Get("/pull-progress", func(c *fiber.Ctx) error {
+		modelName := c.Query("model_name", "gemma2:9b")
+		progress := llm.GetModelProgress(modelName)
+		return c.JSON(fiber.Map{
+			"model":    modelName,
+			"progress": progress,
+		})
+	})
+
 	api.Post("/pull-model", func(c *fiber.Ctx) error {
 		var req ModelRequest
 		if err := c.BodyParser(&req); err != nil || req.ModelName == "" {

@@ -15,6 +15,7 @@ export default function AdminPage({ systemName, systemLogo, setSystemName, setSy
   const [statusMsg, setStatusMsg] = useState('');
   const [isPulling, setIsPulling] = useState(false);
   const [isModelLoaded, setIsModelLoaded] = useState(false);
+  const [pullProgress, setPullProgress] = useState(0);
 
   useEffect(() => {
     // Check if model is loaded on mount
@@ -23,19 +24,31 @@ export default function AdminPage({ systemName, systemLogo, setSystemName, setSy
         const res = await fetch('/api/model-status?model_name=gemma2:9b');
         const data = await res.json();
         setIsModelLoaded(data.loaded);
+        
+        if (!data.loaded) {
+          const progRes = await fetch('/api/pull-progress?model_name=gemma2:9b');
+          const progData = await progRes.json();
+          if (progData.progress > 0) {
+            setIsPulling(true);
+            setPullProgress(progData.progress);
+            if (progData.progress >= 100) {
+              setIsModelLoaded(true);
+              setIsPulling(false);
+            }
+          }
+        } else {
+          setIsPulling(false);
+        }
       } catch (e) {
         console.error(e);
       }
     };
     checkModel();
     
-    // Poll every 10 seconds if pulling
-    let interval: any;
-    if (isPulling) {
-      interval = setInterval(checkModel, 10000);
-    }
+    // Poll every 5 seconds
+    const interval = setInterval(checkModel, 5000);
     return () => clearInterval(interval);
-  }, [isPulling]);
+  }, []);
 
   const saveSettings = async () => {
     try {
@@ -71,14 +84,13 @@ export default function AdminPage({ systemName, systemLogo, setSystemName, setSy
 
   const pullModel = async () => {
     setIsPulling(true);
+    setPullProgress(0.1);
     try {
       await fetch('/api/pull-model', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ model_name: 'gemma2:9b' })
       });
-      setStatusMsg('بدأ تحميل نموذج gemma2:9b في الخلفية! (هذه العملية تستغرق 5-10 دقائق، يمكنك التحقق لاحقاً)');
-      setTimeout(() => setStatusMsg(''), 5000);
     } catch (e) {
       console.error(e);
       setStatusMsg('حدث خطأ أثناء محاولة التحميل');
@@ -121,9 +133,22 @@ export default function AdminPage({ systemName, systemLogo, setSystemName, setSy
               <p style={{color: 'var(--text-secondary)', marginBottom: '1rem', fontSize: '0.9rem'}}>
                 الذكاء الحالي غير محمل. يرجى الضغط على الزر أدناه لبدء تحميل العقل الأساسي (gemma2:9b) ليعمل محلياً بالكامل.
               </p>
+              
+              {isPulling && pullProgress > 0 && (
+                <div style={{marginBottom: '1rem'}}>
+                  <div style={{display: 'flex', justifyContent: 'space-between', fontSize: '0.85rem', marginBottom: '0.5rem'}}>
+                    <span>جاري التحميل...</span>
+                    <span>{pullProgress.toFixed(1)}%</span>
+                  </div>
+                  <div style={{width: '100%', height: '8px', background: 'rgba(255,255,255,0.1)', borderRadius: '4px', overflow: 'hidden'}}>
+                    <div style={{width: `${pullProgress}%`, height: '100%', background: 'var(--accent)', transition: 'width 0.5s'}} />
+                  </div>
+                </div>
+              )}
+
               <button className="primary-btn" onClick={pullModel} disabled={isPulling} style={{backgroundColor: isPulling ? 'gray' : 'var(--accent)'}}>
                 <DownloadCloud size={16} style={{display: 'inline', verticalAlign: 'middle', marginRight: '0.5rem'}}/>
-                {isPulling ? 'جاري التحميل والتثبيت (يرجى الانتظار)...' : 'تحميل نموذج Gemma 2 (9B)'}
+                {isPulling ? 'جاري التحميل في الخلفية...' : 'تحميل نموذج Gemma 2 (9B)'}
               </button>
             </>
           )}
